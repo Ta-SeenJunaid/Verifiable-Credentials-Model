@@ -31,7 +31,7 @@ public class BaseException extends RuntimeException {
 		builder.append(s).append(". Error code = ").append(getErrorCode().getCode())
 			.append(", Error message : ").append(getMessage());
 		
-		return builder.toString();
+		return builder.toString(); 
 	}
 
 }
