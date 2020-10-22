@@ -102,5 +102,18 @@ public class DataToolUtils {
     	}
     	return write.toString();
     }
+    
+    public static Map<String, Object> objToMap(Object object) throws Exception {
+    	JsonNode jsonNode = OBJECT_MAPPER.readTree(serialize(object));
+    	return (HashMap<String, Object>) OBJECT_MAPPER.convertValue(jsonNode, HashMap.class);
+    }
+    
+    public static String sha256(String  utfString) {
+    	return DigestUtils.sha256Hex(utfString);
+    }
+    
+    public static String mapToCompactJson(Map<String, Object> map) throws Exception {
+        return OBJECT_MAPPER.readTree(serialize(map)).toString();
+    }
 
 }
