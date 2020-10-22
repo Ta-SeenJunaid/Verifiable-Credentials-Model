@@ -115,5 +115,50 @@ public class DataToolUtils {
     public static String mapToCompactJson(Map<String, Object> map) throws Exception {
         return OBJECT_MAPPER.readTree(serialize(map)).toString();
     }
+    
+    public static String secp256k1Sign(String rawData, String privateKeyString) 
+    		throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException,
+    		SignatureException, UnsupportedEncodingException {
+    	
+    	EncodedKeySpec privateKeySpec = 
+				new PKCS8EncodedKeySpec(Base64.getDecoder()
+						.decode(privateKeyString));
+    	
+		KeyFactory keyFactory = KeyFactory.getInstance("EC");
+		PrivateKey privateKey = keyFactory.generatePrivate(privateKeySpec);
+		
+		
+		Signature ecdsaSign = Signature.getInstance("SHA256withECDSA");
+		ecdsaSign.initSign(privateKey);
+		ecdsaSign.update(rawData.getBytes("UTF-8"));
+		byte[] signature = ecdsaSign.sign();
+		
+		return Base64.getEncoder().encodeToString(signature);	
+    }
+
+    public static boolean verifySecp256k1Signature(
+    		String rawData,
+    		String signature,
+    		String publickeyString) throws NoSuchAlgorithmException, 
+    InvalidKeySpecException, InvalidKeyException, 
+    SignatureException, UnsupportedEncodingException {
+    	
+
+		EncodedKeySpec publicKeySpec = 
+				new X509EncodedKeySpec(Base64.getDecoder()
+						.decode(publickeyString));
+		
+		KeyFactory keyFactory = KeyFactory.getInstance("EC");
+		PublicKey publicKey = keyFactory.generatePublic(publicKeySpec);
+		
+		
+		Signature ecdsaVerify = Signature.getInstance("SHA256withECDSA");
+		KeyFactory kf = KeyFactory.getInstance("EC");
+		
+		ecdsaVerify.initVerify(publicKey);
+		ecdsaVerify.update(rawData.getBytes("UTF-8"));
+		
+		return ecdsaVerify.verify(Base64.getDecoder().decode(signature)); 	
+    }
 
 }
