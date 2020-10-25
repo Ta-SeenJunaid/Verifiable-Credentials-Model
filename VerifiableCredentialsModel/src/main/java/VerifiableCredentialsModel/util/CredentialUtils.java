@@ -1,12 +1,19 @@
 package VerifiableCredentialsModel.util;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 
 import VerifiableCredentialsModel.constant.CredentialConstant;
 import VerifiableCredentialsModel.constant.CredentialConstant.CredentialProofType;
+import VerifiableCredentialsModel.constant.CredentialFieldDisclosureValue;
 import VerifiableCredentialsModel.constant.ErrorCode;
 import VerifiableCredentialsModel.constant.IdConstant;
 import VerifiableCredentialsModel.constant.ParamKeyConstant;
@@ -141,5 +148,149 @@ public class CredentialUtils {
         
         return ErrorCode.SUCCESS;
 	}
-
+	
+	public static ErrorCode isCredentialValid(Credential args) {
+		if (args == null) {
+			return ErrorCode.ILLEGAL_INPUT;
+		}
+		CreateCredentialArgs createCredentialArgs = extractCredentialMetadata(args);
+		ErrorCode metadataResponseData = isCreateCredentialArgsValid(createCredentialArgs);
+		if (ErrorCode.SUCCESS.getCode() != metadataResponseData.getCode()) {
+			return metadataResponseData;
+		}
+		
+		ErrorCode contentResponseData = isCredentialContentValid(args);
+		if (ErrorCode.SUCCESS.getCode() != contentResponseData.getCode()) {
+			return contentResponseData;
+		}
+		return ErrorCode.SUCCESS;
+	}
+	
+    public static Map<String, String> buildCredentialProof(
+            Credential credential,
+            String privateKey,
+            Map<String, Object> disclosureMap) throws Exception{
+            Map<String, String> proof = new HashMap<>();
+            proof.put(ParamKeyConstant.PROOF_CREATED, credential.getIssuanceDate().toString());
+            proof.put(ParamKeyConstant.PROOF_CREATOR, credential.getIssuer());
+            proof.put(ParamKeyConstant.PROOF_TYPE, getDefaultCredentialProofType());
+            proof.put(ParamKeyConstant.CREDENTIAL_SIGNATURE,
+                getCredentialSignature(credential, privateKey, disclosureMap));
+            
+            return proof;
+    }
+	
+	public static String getCredentialSignature(Credential credential, String privateKey,
+			Map<String, Object> disclosureMap) throws Exception {
+		String rawData = CredentialUtils.getCredentialThumbprintWithoutSig(credential, 
+				disclosureMap);
+		
+		return DataToolUtils.secp256k1Sign(rawData, privateKey);
+	}
+	
+	public static String getDefaultCredentialProofType() {
+		return CredentialConstant.CredentialProofType.ECDSA.getTypeName();
+	}
+	
+	public static Credential copyCredential(Credential credential) {
+		Credential ct = new Credential();
+		ct.setContext(credential.getContext());
+		
+		Map<String, String> originalProof = credential.getProof();
+		if (originalProof != null) {
+			Map<String, String> proof = DataToolUtils
+					.deserialize(DataToolUtils.serialize(originalProof), HashMap.class);
+			ct.setProof(proof);
+		}
+		
+		Map<String, Object> originalClaim = credential.getClaim();
+		if(originalClaim != null) {
+			Map<String, Object> claim = DataToolUtils.
+					deserialize(DataToolUtils.serialize(originalClaim), HashMap.class);
+			ct.setClaim(claim);
+		}
+		
+        ct.setIssuanceDate(credential.getIssuanceDate());
+        ct.setCptId(credential.getCptId());
+        ct.setExpirationDate(credential.getExpirationDate());
+        ct.setIssuer(credential.getIssuer());
+        ct.setId(credential.getId());
+        return ct;
+	}
+	
+	public static String getCredentialThumbprintWithoutSig(
+			Credential credential, Map<String, Object> disclosures) {
+		try {
+			Credential rawCredential = copyCredential(credential);
+			rawCredential.setProof(null);
+			return getCredentialThumbprint(rawCredential, disclosures);
+		} catch (Exception e) {
+			return StringUtils.EMPTY;
+		}
+	}
+	
+	public static String getCredentialThumbprint(
+			Credential credential, Map<String, Object> disclosures) {
+		
+		try {
+			Map<String, Object> credMap = DataToolUtils.objToMap(credential);
+			String claimHash = getClaimHash(credential, disclosures);
+			credMap.put(ParamKeyConstant.CLAIM, claimHash);
+			return DataToolUtils.mapToCompactJson(credMap);
+		} catch (Exception e) {
+			return StringUtils.EMPTY;
+		}
+		
+	}
+	
+	public static String getClaimHash(Credential credential, Map<String, Object> disclosures) {
+		Map<String, Object> claim = credential.getClaim();
+		Map<String, Object> claimHashMap = new HashMap<>(claim); 
+		Map<String, Object> disclosureMap;
+		
+		if (disclosures == null) {
+			disclosureMap = new HashMap<>(claim);
+			for (Map.Entry<String, Object> entry : disclosureMap.entrySet()) {
+				disclosureMap.put(
+						entry.getKey(),
+						CredentialFieldDisclosureValue.DISCLOSED.getStatus()
+						);
+			}
+		} else {
+			disclosureMap = disclosures;
+		}
+		
+		for (Map.Entry<String, Object> entry : disclosureMap.entrySet()) {
+			
+			if(CredentialFieldDisclosureValue.DISCLOSED.
+    				getStatus().equals(entry.getValue())) {
+				claimHashMap.put(entry.getKey(), getFieldHash(claimHashMap.get(entry.getKey())));
+			}
+			else {
+				claimHashMap.put(entry.getKey(), claimHashMap.get(entry.getKey()));
+			}
+		}
+		
+		List<Map.Entry<String, Object>> list = new ArrayList<Map.Entry<String, Object>>(
+				claimHashMap.entrySet());
+		
+		Collections.sort(list, new Comparator<Map.Entry<String, Object>>() {
+			
+			@Override
+			public int compare(Entry<String, Object> o1, Entry<String, Object> o2) {
+				return o1.getKey().compareTo(o2.getKey());
+			}
+		});
+				
+		StringBuffer hash = new StringBuffer();
+		for (Map.Entry<String, Object> en : list) {
+			hash.append(en.getKey()).append(en.getValue());
+		}
+		
+		return hash.toString();
+	}
+	
+	public static String getFieldHash(Object field) {
+		return DataToolUtils.sha256(String.valueOf(field));
+	}
 }
