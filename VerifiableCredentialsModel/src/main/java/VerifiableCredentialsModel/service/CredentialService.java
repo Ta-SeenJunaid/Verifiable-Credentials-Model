@@ -21,6 +21,18 @@ public interface CredentialService {
 	 * @param credential the credential
 	 * @return credential string
 	 */
-	ResponseData<String> getCredentialJson(Credential credential);	
+	ResponseData<String> getCredentialJson(Credential credential);
+	
+	/**
+	 * Generate credential with selective disclosure
+	 * 
+	 * @param credential the credential
+	 * @param the setting of disclosure, such as: {@code{"name":1,"info":0,"age":1}},
+     *     which means you WILL disclose "name" and "age", and "info" WILL NOT be disclosed 
+	 * @return CredentialWrapper
+	 */
+	ResponseData<CredentialWrapper> createSelectiveCredential(
+			Credential credential,
+			String disclosure);
 
 }

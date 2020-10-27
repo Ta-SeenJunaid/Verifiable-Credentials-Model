@@ -131,5 +131,37 @@ public class CredentialServiceImpl implements CredentialService{
     		return new ResponseData<>(StringUtils.EMPTY, ErrorCode.CREDENTIAL_ERROR);
     	}
     }
+    
+    @Override
+    public ResponseData<CredentialWrapper> createSelectiveCredential(
+    		Credential credential,
+    		String disclosure) {
+    	
+    	CredentialWrapper credentialResult = new CredentialWrapper();
+    	ErrorCode checkResp = CredentialUtils.isCredentialValid(credential);
+    	if (ErrorCode.SUCCESS.getCode() != checkResp.getCode()) {
+    		return new ResponseData<>(credentialResult, checkResp);
+    	}
+    	
+    	Map<String, Object> claim = credential.getClaim();
+    	Map<String, Object> hashMap = new HashMap<String, Object>(claim);
+    	
+    	for (Map.Entry<String, Object> entry : claim.entrySet()) {
+    		claim.put(entry.getKey(), CredentialUtils.getFieldHash(entry.getValue()));
+    	}
+    	
+    	Map<String, Object> disclosureMap = DataToolUtils.deserialize(disclosure, HashMap.class);
+    	
+    	for (Map.Entry<String, Object> entry : disclosureMap.entrySet()) {
+    		if(CredentialFieldDisclosureValue.DISCLOSED.
+    				getStatus().equals(entry.getValue())) {
+    			claim.put(entry.getKey(), hashMap.get(entry.getKey()));
+    		}
+    	}    	
+    	credentialResult.setCredential(credential);
+    	credentialResult.setDisclosure(disclosureMap);
+    	
+    	return new ResponseData<>(credentialResult, ErrorCode.SUCCESS);    
+    }
 
 }
