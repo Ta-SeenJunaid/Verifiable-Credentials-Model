@@ -8,13 +8,16 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import VerifiableCredentialsModel.constant.CredentialConstant;
 import VerifiableCredentialsModel.constant.CredentialFieldDisclosureValue;
 import VerifiableCredentialsModel.constant.ErrorCode;
+import VerifiableCredentialsModel.constant.ParamKeyConstant;
 import VerifiableCredentialsModel.protocol.base.Credential;
 import VerifiableCredentialsModel.protocol.base.CredentialWrapper;
 import VerifiableCredentialsModel.protocol.request.CreateCredentialArgs;
 import VerifiableCredentialsModel.protocol.response.ResponseData;
 import VerifiableCredentialsModel.util.CredentialUtils;
+import VerifiableCredentialsModel.util.DataToolUtils;
 import VerifiableCredentialsModel.util.DateUtils;
 
 
@@ -100,5 +103,33 @@ public class CredentialServiceImpl implements CredentialService{
 		return ErrorCode.SUCCESS;
 
 	}
+    
+    
+    @Override
+    public ResponseData<String> getCredentialJson(Credential credential){
+    	
+    	ErrorCode errorCode = CredentialUtils.isCredentialValid(credential);
+    	if (errorCode.getCode() != ErrorCode.SUCCESS.getCode()) {
+    		return new ResponseData<>(
+    				StringUtils.EMPTY,
+    				ErrorCode.geetTypeByErrorCode(errorCode.getCode()));
+    	}
+    	try {
+    		Map<String, Object> credMap = DataToolUtils.objToMap(credential);
+    		String issuanceDate = DateUtils.convertTimestampToDate(credential.getIssuanceDate());
+    		String expirationDate = DateUtils.convertTimestampToDate(credential.getExpirationDate());
+    		credMap.put(ParamKeyConstant.ISSUANCE_DATE, issuanceDate);
+    		credMap.put(ParamKeyConstant.EXPIRATION_DATE, expirationDate);
+    		credMap.remove(ParamKeyConstant.CONTEXT);
+    		credMap.put(CredentialConstant.CREDENTIAL_CONTEXT_PORTABLE_JSON_FIELD,
+    				CredentialConstant.DEFAULT_CREDENDTIAL_CONTEXT);
+    		String credentialString = DataToolUtils.mapToCompactJson(credMap);
+    		
+    		return new ResponseData<String>(credentialString, ErrorCode.SUCCESS);
+    	} catch (Exception e) {
+    		logger.error("Json conversion failed in getCredentialJson: ", e);
+    		return new ResponseData<>(StringUtils.EMPTY, ErrorCode.CREDENTIAL_ERROR);
+    	}
+    }
 
 }
