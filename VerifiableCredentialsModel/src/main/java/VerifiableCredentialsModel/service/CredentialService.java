@@ -34,5 +34,14 @@ public interface CredentialService {
 	ResponseData<CredentialWrapper> createSelectiveCredential(
 			Credential credential,
 			String disclosure);
+	
+	/**
+	 * Verify the validity of credential
+	 * 
+	 * @param credentialWrapper
+	 * @return true if valid & false otherwise
+	 * @throws Exception
+	 */
+	ResponseData<Boolean> verify(CredentialWrapper credentialWrapper) throws Exception;
 
 }

@@ -163,5 +163,68 @@ public class CredentialServiceImpl implements CredentialService{
     	
     	return new ResponseData<>(credentialResult, ErrorCode.SUCCESS);    
     }
+    
+    @Override
+    public ResponseData<Boolean> verify(CredentialWrapper credentialWrapper) throws Exception {
+    	return verifyCredentialContent(credentialWrapper);
+    }
+    
+    private ResponseData<Boolean> verifyCredentialContent(CredentialWrapper 
+    		credentialWrapper) throws Exception {
+    	Credential credential = credentialWrapper.getCredential();
+    	ErrorCode innerResponse = CredentialUtils.isCredentialValid(credential);
+    	if(ErrorCode.SUCCESS.getCode() != innerResponse.getCode()) {
+    		logger.error("Credential input format error!");
+    		return new ResponseData<>(false, innerResponse);
+    	}
+    	    	
+    	ResponseData<Boolean> responseData = verifyNotExpired(credential);
+    	if (!responseData.getResult()) {
+    		return responseData;
+    	}
+    	
+    	responseData = verifySignature(credentialWrapper);
+    	return responseData;  	
+    }
+    
+    private ResponseData<Boolean> verifyNotExpired(Credential credential){
+    	try {
+    		boolean result = DateUtils.isAfterCurrentTime(credential.getExpirationDate());
+    		ResponseData<Boolean> responseData = new ResponseData<Boolean>(result, ErrorCode.SUCCESS);
+    		if(!result) {
+    			responseData.setErrorCode(ErrorCode.CREDENTIAL_EXPIRED);
+    		}
+    		return responseData;
+    	} catch (Exception e) {
+    		logger.error(
+    				"Generic error occured during verify expiration when verifyCredential" + e);
+    		
+    		return new ResponseData<Boolean>(false, ErrorCode.CREDENTIAL_ERROR);
+    	}
+    }
+    
+    private ResponseData<Boolean> verifySignature(
+    		CredentialWrapper credentialWrapper) throws Exception{
+    	
+    		Credential credential = credentialWrapper.getCredential();
+    		Map<String, Object> disclosureMap = credentialWrapper.getDisclosure();
+    		String rawData = CredentialUtils
+    				.getCredentialThumbprintWithoutSig(credential, disclosureMap);
+    		    		
+    		
+    		String publickey = credential.getIssuer();
+    		
+    		String signature = credential.getSignature();
+    		
+    		boolean result = DataToolUtils.verifySecp256k1Signature(rawData, 
+    				signature, publickey);
+    		
+    		if (!result) {
+    			return new ResponseData<>(false, ErrorCode.CREDENTIAL_VERIFY_FAIL);
+    		}
+    		
+    		return new ResponseData<>(true, ErrorCode.SUCCESS);
+    		   	
+    }
 
 }
