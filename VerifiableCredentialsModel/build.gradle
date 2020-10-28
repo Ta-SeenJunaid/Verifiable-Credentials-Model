@@ -32,6 +32,8 @@ dependencies {
     compile group: 'commons-codec', name: 'commons-codec', version: '1.14'
     
     compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.30'
+    
+    compile "org.slf4j:slf4j-simple:1.7.30"
         
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.11.1'
     
