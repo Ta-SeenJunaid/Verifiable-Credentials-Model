@@ -70,6 +70,28 @@ public class VerCred {
         
         System.out.println("Created credential by Issuer: ");
         System.out.println(credentialJsonDataIsuer.getResult());
+        
+        //Prover Operation
+        CredentialServiceImpl credentialServiceImpl2 = new CredentialServiceImpl();
+        String disclosure = 
+        		"{\"name\":0,\"gender\":1,\"age\":1, \"licence_info\":0, \"id\":1}";
+        ResponseData<CredentialWrapper> selectiveCredentialWrapper = credentialServiceImpl2.
+        		createSelectiveCredential(response.getResult().getCredential(), disclosure);
+        
+        ResponseData<String> proofJson = credentialServiceImpl2.
+        		getCredentialJson(selectiveCredentialWrapper.getResult().getCredential());       
+        System.out.println("Created proof by prover: ");
+        System.out.println(proofJson.getResult());
+        
+        //Verifier Operation
+        CredentialServiceImpl credentialServiceImplVerify = new CredentialServiceImpl();      
+        ResponseData<String> proofJsonData = credentialServiceImplVerify.getCredentialJson(response.getResult().getCredential());
+        System.out.println("Proof received by verifier: ");
+        System.out.println(proofJsonData.getResult());
+        
+        ResponseData<Boolean> verify =
+        		credentialServiceImplVerify.verify(selectiveCredentialWrapper.getResult());
+        System.out.println("Verifying Status: " + verify.getResult());
 
 	}
 
